@@ -8,7 +8,6 @@ import (
 	"log"
 	"net/http"
 	"net/url"
-	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -37,7 +36,7 @@ func main() {
 		log.Fatal(err)
 	}
 	go func() {
-		err = db.BuildIndex("testdata/media_test.json")
+		err = db.BuildMediaIndex("testdata/media_test.json")
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -46,7 +45,7 @@ func main() {
 	http.Handle("/api/v1/search", GET(SearchHandler(db)))
 	http.Handle("/api/v1/media_items", GET(MediaItemsHandler(db)))
 	http.Handle("/api/v1/epg", GET(EpgHandler(db)))
-	fmt.Println("Running on :8080...")
+	fmt.Println("Running on http://localhost:8080...")
 	http.ListenAndServe(":8080", nil)
 }
 
@@ -71,8 +70,10 @@ func ResponseError(w http.ResponseWriter, statusCode int, err error) {
 }
 
 type DB struct {
-	index bleve.Index
-	data  map[string]interface{}
+	index     bleve.Index
+	batch     *bleve.Batch
+	batchStep int
+	data      map[string]interface{}
 }
 
 func NewDB(mapping mapping.IndexMapping) (*DB, error) {
@@ -81,7 +82,32 @@ func NewDB(mapping mapping.IndexMapping) (*DB, error) {
 		return nil, err
 	}
 
-	return &DB{index: idx, data: make(map[string]interface{})}, nil
+	return &DB{index: idx, batch: idx.NewBatch(), data: make(map[string]interface{})}, nil
+}
+
+func (db *DB) Index(id string, data interface{}) error {
+	db.data[id] = data
+	db.batchStep++
+	err := db.batch.Index(id, data)
+	if err != nil {
+		return err
+	}
+	if db.batchStep > 1000 {
+		return db.FlushIndex()
+	}
+	return nil
+}
+
+func (db *DB) FlushIndex() error {
+	start := time.Now()
+	err := db.index.Batch(db.batch)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("Batch finished in %f seconds\n", time.Now().Sub(start).Seconds())
+	db.batch = db.index.NewBatch()
+	db.batchStep = 0
+	return nil
 }
 
 func (db *DB) Search(query string, limit, offset int, asc bool, order ...string) (Response, error) {
@@ -119,47 +145,44 @@ func (db *DB) Search(query string, limit, offset int, asc bool, order ...string)
 	return response, nil
 }
 
-func (db *DB) BuildIndex(sourcePath string) error {
-	r, err := os.Open(sourcePath)
+func (db *DB) BuildMediaIndex(path string) error {
+	buf, err := ioutil.ReadFile(path)
 	if err != nil {
 		return err
 	}
-	defer r.Close()
-
-	buf, err := ioutil.ReadAll(r)
+	var objects []Media
+	err = json.Unmarshal(buf, &objects)
 	if err != nil {
 		return err
 	}
-	var medias []Media
-	err = json.Unmarshal(buf, &medias)
-	if err != nil {
-		return err
-	}
-	last := len(medias) - 1
-	fmt.Printf("%d JSON items decoded\n", last+1)
-	batch := db.index.NewBatch()
-	var n int
-	for i, m := range medias {
-		id := strconv.FormatInt(m.ID, 10)
-		db.data[id] = m
-		err = batch.Index(id, m)
+	for _, o := range objects {
+		err = db.Index(strconv.FormatInt(o.ID, 10), o)
 		if err != nil {
 			return err
 		}
-		if i > 1000 || i == last {
-			n++
-			start := time.Now()
-			err = db.index.Batch(batch)
-			if err != nil {
-				return err
-			}
-			fmt.Printf("Batch %d finished in %f seconds\n", n, time.Now().Sub(start).Seconds())
-			batch = db.index.NewBatch()
-			i = 0
+	}
+
+	return db.FlushIndex()
+}
+
+func (db *DB) BuildEpgIndex(path string) error {
+	buf, err := ioutil.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	var objects []Epg
+	err = json.Unmarshal(buf, &objects)
+	if err != nil {
+		return err
+	}
+	for _, o := range objects {
+		err = db.Index(strconv.FormatInt(o.ID, 10), o)
+		if err != nil {
+			return err
 		}
 	}
 
-	return nil
+	return db.FlushIndex()
 }
 
 func EpgHandler(db *DB) http.Handler {
