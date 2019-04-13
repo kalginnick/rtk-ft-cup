@@ -15,7 +15,7 @@ type DB struct {
 	batch     *bleve.Batch
 	batchStep int
 	data      map[string]interface{}
-	mu        sync.RWMutex
+	mu        sync.Mutex
 }
 
 func NewDB(mapping mapping.IndexMapping) (*DB, error) {
@@ -28,7 +28,9 @@ func NewDB(mapping mapping.IndexMapping) (*DB, error) {
 }
 
 func (db *DB) Index(id string, data interface{}) error {
+	db.mu.Lock()
 	db.data[id] = data
+	db.mu.Unlock()
 	db.batchStep++
 	err := db.batch.Index(id, data)
 	if err != nil {
@@ -71,10 +73,10 @@ func (db *DB) Search(q query.Query, limit, offset int, asc bool, order ...string
 		TotalItems: result.Total,
 		Items:      make([]Item, len(result.Hits)),
 	}
-	db.mu.Lock()
-	defer db.mu.Unlock()
 	for i, hit := range result.Hits {
+		db.mu.Lock()
 		object := db.data[hit.ID]
+		db.mu.Unlock()
 		switch item := object.(type) {
 		case Media:
 			response.Items[i].Type = "media_item"

@@ -3,8 +3,9 @@ package main
 import (
 	"log"
 	"net/http"
-	"os"
 	"path"
+
+	"github.com/gorilla/handlers"
 
 	"github.com/blevesearch/bleve"
 	"github.com/blevesearch/bleve/analysis/lang/ru"
@@ -34,7 +35,7 @@ func main() {
 	//}
 	//}()
 
-	http.Handle("/api/v1/search", GET(SearchHandler(db)))
+	http.Handle("/api/v1/search", handlers.CORS()(GET(SearchHandler(db))))
 	http.Handle("/api/v1/media_items", GET(MediaHandler(db)))
 	http.Handle("/api/v1/epg", GET(EpgHandler(db)))
 	log.Print("Running on http://localhost:8080...")
