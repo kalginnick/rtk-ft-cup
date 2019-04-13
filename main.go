@@ -3,6 +3,8 @@ package main
 import (
 	"log"
 	"net/http"
+	"os"
+	"path"
 
 	"github.com/blevesearch/bleve"
 	"github.com/blevesearch/bleve/analysis/lang/ru"
@@ -18,12 +20,19 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	dataDir := os.Getenv("DATA_DIR")
 	go func() {
-		err = BuildMediaIndex(db, "testdata/media_test.json")
+		err = BuildMediaIndex(db, path.Join(dataDir, "media_items.json"))
 		if err != nil {
 			log.Fatal(err)
 		}
 	}()
+	//go func() {
+	//err = BuildEpgIndex(db, path.Join(dataDir, "epg.json"))
+	//if err != nil {
+	//	log.Fatal(err)
+	//}
+	//}()
 
 	http.Handle("/api/v1/search", GET(SearchHandler(db)))
 	http.Handle("/api/v1/media_items", GET(MediaHandler(db)))
