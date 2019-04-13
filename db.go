@@ -1,10 +1,12 @@
 package main
 
 import (
-	"fmt"
+	"log"
+	"time"
+
 	"github.com/blevesearch/bleve"
 	"github.com/blevesearch/bleve/mapping"
-	"time"
+	"github.com/blevesearch/bleve/search/query"
 )
 
 type DB struct {
@@ -42,14 +44,13 @@ func (db *DB) FlushIndex() error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf("Batch finished in %f seconds\n", time.Now().Sub(start).Seconds())
+	log.Printf("Batch finished in %f seconds\n", time.Now().Sub(start).Seconds())
 	db.batch = db.index.NewBatch()
 	db.batchStep = 0
 	return nil
 }
 
-func (db *DB) Search(query string, limit, offset int, asc bool, order ...string) (Response, error) {
-	q := bleve.NewQueryStringQuery(fmt.Sprintf("%s", query))
+func (db *DB) Search(q query.Query, limit, offset int, asc bool, order ...string) (Response, error) {
 	request := bleve.NewSearchRequestOptions(q, limit, offset, true)
 	if len(order) > 0 {
 		if !asc {

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 
@@ -29,6 +28,6 @@ func main() {
 	http.Handle("/api/v1/search", GET(SearchHandler(db)))
 	http.Handle("/api/v1/media_items", GET(MediaHandler(db)))
 	http.Handle("/api/v1/epg", GET(EpgHandler(db)))
-	fmt.Println("Running on http://localhost:8080...")
+	log.Print("Running on http://localhost:8080...")
 	http.ListenAndServe(":8080", nil)
 }

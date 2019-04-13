@@ -2,11 +2,13 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
+
+	"github.com/blevesearch/bleve/analysis/analyzer/keyword"
 
 	"github.com/blevesearch/bleve"
 	"github.com/blevesearch/bleve/analysis/lang/ru"
@@ -49,24 +51,18 @@ func MediaHandler(db *DB) http.Handler {
 			limit = 10
 		}
 		offset, _ := strconv.Atoi(params.Get("offset"))
-		startTime, _ := strconv.Atoi(params.Get("start_time"))
-		endTime, _ := strconv.Atoi(params.Get("end_time"))
-		//channel, _ := url.QueryUnescape(params.Get("channel_ids"))
-		//channels := strings.Split(channel, ",")
+		yearFrom, _ := strconv.ParseFloat(params.Get("year_ge"), 64)
+		yearTo, _ := strconv.ParseFloat(params.Get("year_le"), 64)
+		//genres, _ := url.QueryUnescape(params.Get("genres"))
+		//country, _ := url.QueryUnescape(params.Get("countries"))
+		//countries := strings.Split(country, ",")
+		sorts, _ := url.QueryUnescape(params.Get("sort_by"))
+		sortBy := strings.Split(sorts, ",")
+		sortDir := params.Get("sort_dir")
 
-		var q strings.Builder
-		if startTime > 0 {
-			q.WriteString(fmt.Sprintf(" start_time:>=%d ", startTime))
-		}
-		if endTime > 0 {
-			q.WriteString(fmt.Sprintf(" end_time:<=%d ", endTime))
-		}
-		//for _, _ := range channels {
-		//q.WriteString(fmt.Sprintf("channel.id:%s", ch))
-		//}
-		//q.WriteString(strings.Join(channels, " "))
-
-		result, err := db.Search(q.String(), limit, offset, true)
+		year := bleve.NewNumericRangeQuery(&yearFrom, &yearTo)
+		year.FieldVal = "year"
+		result, err := db.Search(bleve.NewDisjunctionQuery(year), limit, offset, sortDir != "desc", sortBy...)
 		if err != nil {
 			ResponseError(writer, 500, err)
 		}
@@ -79,11 +75,15 @@ func BuildMediaMapping() *mapping.DocumentMapping {
 	textFieldMapping := bleve.NewTextFieldMapping()
 	textFieldMapping.Analyzer = ru.AnalyzerName
 	numFieldMapping := bleve.NewNumericFieldMapping()
+	keywordFieldMapping := bleve.NewTextFieldMapping()
+	keywordFieldMapping.Analyzer = keyword.Name
 
 	mediaMapping := bleve.NewDocumentStaticMapping()
 	mediaMapping.AddFieldMappingsAt("name", textFieldMapping)
 	mediaMapping.AddFieldMappingsAt("description", textFieldMapping)
 	mediaMapping.AddFieldMappingsAt("year", numFieldMapping)
+	mediaMapping.AddFieldMappingsAt("start_time", numFieldMapping)
+	mediaMapping.AddFieldMappingsAt("end_time", numFieldMapping)
 	mediaMapping.AddFieldMappingsAt("countries", textFieldMapping)
 	mediaMapping.AddFieldMappingsAt("genres", textFieldMapping)
 	personMapping := bleve.NewDocumentStaticMapping()

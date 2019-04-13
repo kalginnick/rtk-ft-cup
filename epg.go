@@ -47,6 +47,19 @@ func EpgHandler(db *DB) http.Handler {
 			limit = 10
 		}
 		offset, _ := strconv.Atoi(params.Get("offset"))
+		//startTime, _ := strconv.Atoi(params.Get("start_time"))
+		//endTime, _ := strconv.Atoi(params.Get("end_time"))
+		//channel, _ := url.QueryUnescape(params.Get("channel_ids"))
+		//channels := strings.Split(channel, ",")
+
+		//var q strings.Builder
+		//if startTime > 0 {
+		//	q.WriteString(fmt.Sprintf(" start_time:>=%d ", startTime))
+		//}
+		//if endTime > 0 {
+		//	q.WriteString(fmt.Sprintf(" end_time:<=%d ", endTime))
+		//}
+
 		yearGE, _ := strconv.Atoi(params.Get("year_ge"))
 		yearLE, _ := strconv.Atoi(params.Get("year_le"))
 		//genres, _ := url.QueryUnescape(params.Get("genres"))
@@ -64,7 +77,7 @@ func EpgHandler(db *DB) http.Handler {
 			q.WriteString(fmt.Sprintf(" year:>=%d ", yearLE))
 		}
 
-		result, err := db.Search(q.String(), limit, offset, sortDir != "desc", sortBy...)
+		result, err := db.Search(nil, limit, offset, sortDir != "desc", sortBy...)
 		if err != nil {
 			ResponseError(writer, 500, err)
 		}

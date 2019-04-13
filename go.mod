@@ -27,4 +27,5 @@ require (
 	github.com/tecbot/gorocksdb v0.0.0-20181010114359-8752a9433481 // indirect
 	golang.org/x/net v0.0.0-20190404232315-eb5bcb51f2a3 // indirect
 	golang.org/x/sys v0.0.0-20190410170021-cc4d4f50624c // indirect
+	golang.org/x/text v0.3.0
 )
