@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -12,6 +13,7 @@ import (
 
 func SearchHandler(db *DB) http.Handler {
 	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		log.Print(request.URL.RawQuery)
 		params := request.URL.Query()
 		limit, _ := strconv.Atoi(params.Get("limit"))
 		if limit == 0 {

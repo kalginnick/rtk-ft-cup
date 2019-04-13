@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"sync"
 	"time"
 
 	"github.com/blevesearch/bleve"
@@ -14,6 +15,7 @@ type DB struct {
 	batch     *bleve.Batch
 	batchStep int
 	data      map[string]interface{}
+	mu        sync.RWMutex
 }
 
 func NewDB(mapping mapping.IndexMapping) (*DB, error) {
@@ -69,6 +71,8 @@ func (db *DB) Search(q query.Query, limit, offset int, asc bool, order ...string
 		TotalItems: result.Total,
 		Items:      make([]Item, len(result.Hits)),
 	}
+	db.mu.Lock()
+	defer db.mu.Unlock()
 	for i, hit := range result.Hits {
 		object := db.data[hit.ID]
 		switch item := object.(type) {

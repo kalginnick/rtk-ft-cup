@@ -36,4 +36,5 @@ func ResponseResult(writer http.ResponseWriter, response Response) {
 
 	writer.Header().Set("Content-Type", "application/json; charset=utf-8")
 	fmt.Fprint(writer, string(buf))
+	log.Print(string(buf))
 }
